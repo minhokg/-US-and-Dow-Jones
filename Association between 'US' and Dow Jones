@@ -1,0 +1,63 @@
+# Importing
+## Importing libraries we need
+library(tidyverse)
+library(stopwords)
+library(textstem)
+## Importing data. 'stock_news' is combined data which includes 25 (Top1 to Top25) news headlines and Dow Jones Industrial Average of a day. 
+## 'stock' data just includes Dow Jones figure
+## And the period is from 2008-06-08 to 2016-07-01
+## You can download these data from https://www.kaggle.com/datasets/aaron7sun/stocknews
+stock_news <- read.csv('Combined_News_DJIA.csv')
+stock <- read.csv('upload_DJIA_table.csv')
+## Here, I'm going to just deal with Top1 to Top3 new headlines for convenience.
+stock_news <- stock_news[,1:5]
+## Inspecting the day at which the stock figure is the highest and what news headlines are.
+maxdate <- stock$Date[which(max(stock$Close)==stock$Close)]
+stock_news[stock_news$Date==maxdate,] ## In the Top3 news, the word 'US' is included.
+
+## Let's extract data in which the stock price increased
+lbls <- stock_news$Label # Extracting Label(if stock increased, 1, otherwise, 0)
+stock_up <- stock_news[lbls==1,] ## Give a condition as label equals 1  
+tx_up <- stock_up[,3:5] ## Separate text only  
+dates_up <- stock_news[lbls==1,1] ## Disunite 'date' from data 
+## Look at text and dates briefly.
+head(tx_up)
+head(dates_up)
+
+# Preprocess
+## Some news headlines, the letter 'b' is attached in front of text. So we need to remove that 
+remove_b <- function(column){
+  substr(column,2,nchar(column))
+}
+tx_up[1:477,] <- lapply(tx_up[1:477,],remove_b)
+
+## Leave alphabet, number, and space. Remove all of things except for them.
+clean_column <- function(column) {
+  column <- gsub("[^[:alnum:][:space:]]", "", column)
+  tolower(column)
+}
+clean_tx <- as.data.frame(lapply(tx_up,clean_column))
+
+## Tokenization
+tx_all <- paste(clean_tx$Top1,clean_tx$Top2,clean_tx$Top3)
+tkns <- unlist(strsplit(tx_all, " "))
+## One letter is not a word(e.g, 'a','b'). So remove them.
+tkns <- tkns[nchar(tkns)>=2]
+## Also remove stopwords
+tkns <- tkns[! tkns %in% c(stopwords())]
+## Do lemmatization (which means, for example making 'said' to 'say' and 'had' to 'have')
+tkns <- lemmatize_strings(tkns)
+## Sorting in descending order. 
+tkns.df <- as.data.frame(table(tkns)) %>% arrange(desc(Freq))
+names(tkns.df) <- c('word','freq')
+## We can see that 'us' is the most frequent word among the day the prices ascended.
+head(tkns.df)
+
+# T-test
+## Last, disunite documents into the word 'us' included things and not. 
+stock_us <- stock$Close[stock$Date %in% dates_up[grep('\\bus\\b', tx_all, ignore.case = T)]]
+stock_not <- stock$Close[stock$Date %in% dates_up[-grep('\\bus\\b', tx_all, ignore.case = T)]] 
+## var.equal = F because the number of samples between the two data above are different.
+test <- t.test(stock_us, stock_not, var.equal = F)
+test
+
