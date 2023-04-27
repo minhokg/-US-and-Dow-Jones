@@ -19,10 +19,47 @@ head(stock)
 
 # 2. EDA (Exploratory Data Analysis)
 
+## 1 News Headlines on the day the stock prices is highest.
+
 Before getting into seriously, I'm going to identify on the day when the stock figure is highest, what words are there through the below code. 
 
 ```
 maxdate <- stock$Date[which(max(stock$Close)==stock$Close)]
 stock_news[stock_news$Date==maxdate,]
 ```
-In the top 3 news headline, we can check that the word 'US' is included. So is there an association between an increase of stock price and  
+In the top 3 news headline, we can check that the word 'US' is included. So we can ask the question like this: is there an association between an increase of stock price and the word 'US'? 
+
+## 2
+
+Next step is to find top words appeared in news headlines on the days when the Dow Jones rose. First, extract data in which the stock figure grew like the below code.
+
+```
+lbls <- stock_news$Label # Extracting Label(if stock increased, 1, otherwise, 0)
+stock_up <- stock_news[lbls==1,] ## Give a condition as label equals 1  
+```
+
+And next is to separate text only from mother data 
+
+```
+tx_up <- stock_up[,3:5] ## Separate text only  
+```
+
+Now this part we are going to see from now on is really important: Preprocessing text data. We cannot directly use news headlines for our intention because there are lots of noisy component that we don't need. For instance, exclamation mark(!) and question mark(?) are unnecessary, because we intend to focus on words. Actually, some samples of news headlines data(stock_news) contains a letter 'b' in front of the sentence. So we have to erase that with the below code
+
+```
+remove_b <- function(column){
+  substr(column,2,nchar(column))
+}
+tx_up[1:477,] <- lapply(tx_up[1:477,],remove_b)
+```
+
+
+
+
+
+
+
+
+
+
+
